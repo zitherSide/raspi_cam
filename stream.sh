@@ -1,0 +1,1 @@
+libcamera-vid -t 0 --inline -o - --width 640 --height 480 | cvlc stream:///dev/stdin --sout='#rtp{sdp=rtsp://:8554/stream1}' :demux=h264
