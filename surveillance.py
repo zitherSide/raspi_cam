@@ -2,6 +2,7 @@ import threading
 import time
 import datetime
 import cv2
+import video_context as vc
 
 class serveillance:
     def __init__(self):
@@ -21,6 +22,7 @@ class serveillance:
             self.imgMutex.acquire()
             ret, self.img = self.cap.read()
             self.imgMutex.release()
+            time.sleep(0)
 
     def detect_thread(self):
         lastFrame = None
@@ -55,19 +57,19 @@ class serveillance:
             if detected:
                 endTime = time.time() + 10
             
-                stillPath = f'./img/{datetime.datetime.now()}.jpg'
-                vidPath = f'./vid/{datetime.datetime.now()}.mp4'
-                
+                stem = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+                stillPath = f'./rec/{stem}.jpg'
+                vidPath = f'./rec/{stem}.mp4'
+
                 self.imgMutex.acquire()
                 cv2.imwrite(stillPath, self.img)
-                ost = cv2.VideoWriter(vidPath, self.fourcc, self.fps, self.size)
-                while time.time() < endTime:
-                    ost.write(self.img)
-                    ret, self.img = self.cap.read()
+                with vc.VideoContext(vidPath, self.fourcc, self.fps, self.size) as ost:
+                    while time.time() < endTime:
+                        ost.write(self.img)
+                        ret, self.img = self.cap.read()
 
                 self.imgMutex.release()
                 
-                ost.release()
                 lastFrame = gray.astype("float")
             else:
                 try:
