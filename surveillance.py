@@ -33,26 +33,27 @@ class serveillance:
             frame = self.img
             self.imgMutex.release()
             
-            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            if lastFrame is None:
-                lastFrame = gray.astype("float")
-            
+            gray = None
+            detected = False
             try:
+                gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                if lastFrame is None:
+                    lastFrame = gray.astype("float")
+                
                 cv2.accumulateWeighted(gray, lastFrame, 0.7)
+                diff = cv2.absdiff(gray.astype("float"), lastFrame)
+                thresh = cv2.threshold(diff.astype("uint8"), 4, 255, cv2.THRESH_BINARY)[1]
+                contours, _ = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+                for c in contours:
+                    if cv2.contourArea(c) > 600:
+                        detected = True
+                        print(f'ContureArea: ${cv2.contourArea(c)}')
+                        break
             except Exception as e:
                 print(e)
-                lastFrame = gray.astype("float")
-
-            diff = cv2.absdiff(gray.astype("float"), lastFrame)
-            thresh = cv2.threshold(diff.astype("uint8"), 4, 255, cv2.THRESH_BINARY)[1]
-            contours, _ = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-            detected = False
-            for c in contours:
-                if cv2.contourArea(c) > 600:
-                    detected = True
-                    print(f'ContureArea: ${cv2.contourArea(c)}')
-                    break
+                if gray is not None:
+                    lastFrame = gray.astype("float")
             
             if detected:
                 endTime = time.time() + 10
@@ -62,7 +63,9 @@ class serveillance:
                 vidPath = f'./rec/{stem}.mp4'
 
                 self.imgMutex.acquire()
-                cv2.imwrite(stillPath, self.img)
+                if self.img is not None:
+                    cv2.imwrite(stillPath, self.img)
+
                 with vc.VideoContext(vidPath, self.fourcc, self.fps, self.size) as ost:
                     while time.time() < endTime:
                         ost.write(self.img)
